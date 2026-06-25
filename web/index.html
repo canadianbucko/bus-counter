@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Подсчет автобусов на остановке</title>
+  <style>
+    :root { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #edf1f7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input { font: inherit; }
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 300px; background: #111827; color: white; padding: 28px; }
+    .logo { font-size: 27px; font-weight: 800; line-height: 1.1; }
+    .subtitle { color: #a8b3c7; margin: 14px 0 34px; line-height: 1.45; }
+    .nav { display: grid; gap: 10px; }
+    .nav button { text-align: left; border: 0; border-radius: 14px; padding: 13px 16px; background: transparent; color: #dbe4f0; cursor: pointer; }
+    .nav button.active, .nav button:hover { background: #2563eb; color: white; }
+    main { flex: 1; padding: 36px; overflow: auto; }
+    h1 { margin: 0 0 8px; font-size: 34px; }
+    h2 { margin: 0 0 18px; }
+    .lead { color: #627089; margin-top: 0; max-width: 900px; }
+    .panel { background: white; border-radius: 24px; padding: 24px; box-shadow: 0 12px 30px rgba(15, 23, 42, .08); margin-bottom: 24px; }
+    .grid { display: grid; grid-template-columns: minmax(280px, 430px) 1fr; gap: 24px; align-items: start; }
+    .upload { border: 2px dashed #b7c4d8; border-radius: 22px; padding: 24px; background: #f8fafc; }
+    input[type=file] { width: 100%; border: 1px solid #ccd5e1; border-radius: 12px; padding: 12px 14px; background: white; }
+    button { border: 0; border-radius: 12px; padding: 12px 16px; background: #2563eb; color: white; cursor: pointer; }
+    button.secondary { background: #64748b; }
+    button.danger { background: #dc2626; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .actions { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 18px; margin: 20px 0; }
+    .card { border-radius: 22px; padding: 22px; background: #f8fafc; border: 1px solid #e2e8f0; }
+    .card span { display: block; color: #627089; margin-bottom: 10px; }
+    .card strong { font-size: 38px; }
+    .result-img { width: 100%; max-height: 620px; object-fit: contain; border-radius: 18px; background: #0f172a; }
+    .placeholder { display: grid; place-items: center; min-height: 320px; border-radius: 18px; background: #f1f5f9; color: #64748b; text-align: center; padding: 30px; }
+    .alert { background: #fee2e2; color: #991b1b; border-radius: 16px; padding: 14px 16px; margin: 16px 0; white-space: pre-wrap; }
+    .ok { background: #dcfce7; color: #166534; border-radius: 16px; padding: 14px 16px; margin: 16px 0; }
+    .hint { background: #dbeafe; color: #1e3a8a; padding: 18px; border-radius: 18px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+    th { color: #627089; font-size: 13px; text-transform: uppercase; }
+    code { font-size: 12px; color: #475569; }
+    a { color: #2563eb; }
+    @media (max-width: 980px) { .app { flex-direction: column; } .sidebar { width: 100%; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">Подсчет автобусов на остановке</div>
+      <div class="nav">
+        <button class="active" onclick="showTab('detect', this)">Детекция</button>
+        <button onclick="showTab('history', this)">История</button>
+      </div>
+    </aside>
+
+    <main>
+      <section id="detect-tab">
+        <h1>Детекция автобусов</h1>
+        <p class="lead">загрузите картинку и запустите обработку</p>
+
+        <div class="grid">
+          <div class="panel">
+            <h2>Загрузка изображения</h2>
+            <div class="upload">
+              <input id="imageInput" type="file" accept="image/*" />
+              <div class="actions">
+                <button id="processBtn" onclick="processImage()">Запустить обработку</button>
+                <button class="secondary" onclick="resetResult()">Очистить</button>
+              </div>
+            </div>
+            <div id="message"></div>
+            <div class="cards">
+              <div class="card"><span>Автобусов найдено</span><strong id="count">—</strong></div>
+              <div class="card"><span>Время обработки</span><strong id="elapsed">—</strong></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Результат</h2>
+            <div id="resultBox" class="placeholder">Здесь появится обработанное изображение</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="history-tab" style="display:none">
+        <h1>История запросов</h1>
+        <div class="panel">
+          <div class="actions" style="margin-top:0;margin-bottom:16px">
+            <button onclick="loadHistory()">Обновить</button>
+            <button class="secondary" onclick="downloadCSV()">Скачать CSV отчет</button>
+            <button class="danger" onclick="clearHistory()">Очистить историю</button>
+          </div>
+          <div id="historyBox"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    function showTab(name, btn) {
+      for (const id of ['detect', 'history']) document.getElementById(id + '-tab').style.display = id === name ? '' : 'none'
+      for (const b of document.querySelectorAll('.nav button')) b.classList.remove('active')
+      btn.classList.add('active')
+      if (name === 'history') loadHistory()
+    }
+
+    function setMessage(text, type = 'ok') {
+      document.getElementById('message').innerHTML = text ? `<div class="${type}">${text}</div>` : ''
+    }
+
+    async function processImage() {
+      const input = document.getElementById('imageInput')
+      const file = input.files[0]
+      if (!file) { setMessage('Сначала выберите изображение.', 'alert'); return }
+
+      const btn = document.getElementById('processBtn')
+      btn.disabled = true
+      btn.textContent = 'Обработка...'
+      setMessage('Обработка...', 'ok')
+
+      try {
+        const form = new FormData()
+        form.append('image', file)
+        const res = await fetch('/api/v1/detect', { method: 'POST', body: form })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Ошибка обработки')
+        document.getElementById('count').textContent = data.bus_count
+        document.getElementById('elapsed').textContent = `${data.elapsed_ms} мс`
+        document.getElementById('resultBox').className = ''
+        document.getElementById('resultBox').innerHTML = `<img class="result-img" src="${data.output_path}?t=${Date.now()}" alt="Результат детекции">`
+        setMessage(`Готово. Найдено автобусов: ${data.bus_count}.`, 'ok')
+      } catch (e) {
+        setMessage(e.message, 'alert')
+      } finally {
+        btn.disabled = false
+        btn.textContent = 'Запустить обработку'
+      }
+    }
+
+    function resetResult() {
+      document.getElementById('count').textContent = '—'
+      document.getElementById('elapsed').textContent = '—'
+      document.getElementById('resultBox').className = 'placeholder'
+      document.getElementById('resultBox').textContent = 'Здесь появится обработанное изображение'
+      setMessage('')
+    }
+
+    async function loadHistory() {
+      const box = document.getElementById('historyBox')
+      box.textContent = 'Загрузка...'
+      try {
+        const res = await fetch('/api/v1/history')
+        const data = await res.json()
+        if (!data.length) { box.innerHTML = '<div class="hint">История пока пустая.</div>'; return }
+        box.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Дата</th><th>Файл</th><th>Автобусы</th><th>Время</th><th>Результат</th></tr></thead><tbody>${data.map(row => `
+          <tr>
+            <td>${new Date(row.created_at).toLocaleString('ru-RU')}</td>
+            <td>${escapeHtml(row.original_name)}<br><code>${row.id}</code></td>
+            <td><b>${row.bus_count}</b></td>
+            <td>${row.elapsed_ms} мс</td>
+            <td><a href="${row.output_path}" target="_blank">Открыть изображение</a></td>
+          </tr>`).join('')}</tbody></table></div>`
+      } catch (e) {
+        box.innerHTML = `<div class="alert">${escapeHtml(e.message)}</div>`
+      }
+    }
+
+    function downloadCSV() { window.location.href = '/api/v1/reports/csv' }
+
+    async function clearHistory() {
+      if (!confirm('Очистить историю запросов?')) return
+      await fetch('/api/v1/history', { method: 'DELETE' })
+      await loadHistory()
+    }
+
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[ch]))
+    }
+  </script>
+</body>
+</html>
